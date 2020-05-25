@@ -36,8 +36,10 @@ class Model:
         return spike_time
 
     def run(self):
+        last_spike = -1
         while not self.is_queue_empty():
-            self.next_step()
+            last_spike = self.next_step()
+        return last_spike
 
     def reset(self):
         for layer in self.layers:

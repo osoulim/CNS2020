@@ -15,7 +15,7 @@ class Synapse:
 
         learning_scale = 2 / parameters.nDots
 
-        self.weight = np.random.normal(0.95, 0.05)
+        self.weight = np.random.normal(0.5, 0.05)
         self.delay = 0
         self.number_of_spikes = 0
         self.last_update_time = -1
@@ -28,11 +28,11 @@ class Synapse:
         # STDP parameters
         self.tau_pre = 5.0
         self.tau_post = 5.0
-        self.cApre = 4e-4 * learning_scale
-        self.cApost = 5e-4 * learning_scale
+        self.cApre = 4e-1
+        self.cApost = 5e-1
         self.wmax = 1
         self.wmin = 0
-        self.eps_weight_decay = 1e-4 * learning_scale
+        self.eps_weight_decay = 1e-4
 
     def disable_learning(self):
         self.is_frozen = True

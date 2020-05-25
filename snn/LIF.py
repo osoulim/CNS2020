@@ -6,7 +6,7 @@ from snn import parameters
 class LIF(Neuron):
 
     def __init__(self, neuron_id, layer_id):
-        self.threshold = 4.16
+        self.threshold = 2
         self.tm = 24
         self.current_v = 0
         self.last_update_time = 0
