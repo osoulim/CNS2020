@@ -35,6 +35,10 @@ class Model:
             heappush(self.spikes, spike)
         return spike_time
 
+    def run(self):
+        while not self.is_queue_empty():
+            self.next_step()
+
     def reset(self):
         for layer in self.layers:
             layer.reset()
