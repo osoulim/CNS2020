@@ -17,12 +17,15 @@ class Model:
         for i in range(self.layers_num - 1):
             for x in range(self.layers_sizes[i]):
                 for y in range(self.layers_sizes[i + 1]):
-                    self.synapses[(x, y)] = synapse_class()
-                    self.synapses[(x, y)].add_connection(self.layers[i][x], self.layers[i+1][y])
+                    self.synapses[(i, x, y)] = synapse_class()
+                    self.synapses[(i, x, y)].add_connection(self.layers[i][x], self.layers[i+1][y])
         
     def add_spike_to_input(self, neuron_id, time):
-        heappush(self.spikes, (time, 100, 0, neuron_id))
-    
+        self.add_spike(0, neuron_id, time)
+
+    def add_spike(self, layer_id, neuron_id, time, excitement=100):
+        heappush(self.spikes, (time, excitement, layer_id, neuron_id))
+
     def next_step(self):
         spike_time, exc, layer_id, neuron_id = heappop(self.spikes)
         spiked_neuron = self.layers[layer_id][neuron_id]
