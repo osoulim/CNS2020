@@ -33,6 +33,7 @@ class Model:
         next_spikes = spiked_neuron.excite(exc)
         for spike in next_spikes:
             heappush(self.spikes, spike)
+        return spike_time
 
     def reset(self):
         for layer in self.layers:

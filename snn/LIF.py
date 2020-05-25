@@ -31,7 +31,6 @@ class LIF(Neuron):
             neuron = self.back_neurons[i]
             synapse = self.back_synapses[i]
             synapse.STDP(neuron, self)
-            synapse.delay_plasticity(neuron, self)
 
         for i in range(len(self.forward_neurons)):
             neuron = self.forward_neurons[i]
@@ -39,7 +38,6 @@ class LIF(Neuron):
             if neuron.spike_time != -1:
                 synapse.number_of_spikes -= 1
                 synapse.STDP(self, neuron)
-                synapse.delay_plasticity(self, neuron)
             app.append((self.spike_time + synapse.delay, synapse.weight, neuron.layer_id, neuron._id))
 
         return app
@@ -50,7 +48,7 @@ class LIF(Neuron):
     def check_spike(self):
         # return (self.current_v > self.threshold + self.r_current + (np.random.random() * 0.1 - 0.05)) and (
         #             self.spike_time == -1)
-        return (self.current_v > self.threshold + self.r_current) and (self.spike_time == -1)
+        return self.current_v > self.threshold + self.r_current
 
     def excite(self, v):
         self.current_v += v

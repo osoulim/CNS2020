@@ -16,7 +16,7 @@ class Synapse:
         learning_scale = 2 / parameters.nDots
 
         self.weight = np.random.normal(0.95, 0.05)
-        self.delay = np.random.normal(25, 0.02)
+        self.delay = 0
         self.number_of_spikes = 0
         self.last_update_time = -1
         self.cnt = 0
