@@ -3,10 +3,9 @@ from snn.Neuron import Neuron
 from snn import parameters
 
 
-class MyNeuron(Neuron):
+class LIF(Neuron):
 
     def __init__(self, neuron_id, layer_id):
-        super().__init__(self)
         self.threshold = 4.16
         self.tm = 24
         self.current_v = 0
