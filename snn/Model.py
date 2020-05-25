@@ -40,7 +40,7 @@ class Model:
     def disable_learning(self):
         self.is_testing = True
         for synapse in self.synapses.values():
-            synapse.disable_learing()
+            synapse.disable_learning()
 
     def is_queue_empty(self):
         return len(self.spikes) == 0
