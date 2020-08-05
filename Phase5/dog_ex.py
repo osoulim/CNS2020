@@ -43,12 +43,17 @@ def get_gabor_kernel(landa, theta, sigma, gamma, kernel_size):
     return result  # - np.mean(result)
 
 
-def show_images(image, kernels, filtered_images):
-    fig, axes = plt.subplots(len(kernels) + 1, 2, figsize=(10, 8))
-    axes[0][0].imshow(image, "gray")
+def show_images(image, kernels, filtered_images, parts=4):
+    fig, axes = plt.subplots(len(kernels), 2 + parts, figsize=(10, 8))
     for i in range(len(kernels)):
-        axes[i + 1][0].imshow(kernels[i], "kernel")
-        axes[i + 1][1].imshow(filtered_images[i], "result")
+        axes[i][0].imshow(kernels[i], "gray")
+        axes[i][1].imshow(filtered_images[i], "gray")
+        min_element, max_element = np.min(filtered_images[i]), np.max(filtered_images[i])
+        for j in range(parts):
+            min_thresh = min_element + (max_element - min_element) * j / parts
+            max_thresh = min_element + (max_element - min_element) * (j + 1) / parts
+            axes[i][2 + j].imshow(
+                (min_thresh <= filtered_images[i]) * (filtered_images[i] < max_thresh) * filtered_images[i], "gray")
     plt.show()
 
 
