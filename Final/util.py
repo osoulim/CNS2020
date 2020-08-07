@@ -10,7 +10,7 @@ def convolution2d(image, kernel):
     new_image = np.zeros((y, x))
     for i in range(y):
         for j in range(x):
-            new_image[i][j] = np.sum(image[i:i+m, j:j+m]*kernel)
+            new_image[i][j] = int(np.sum(image[i:i+m, j:j+m]*kernel))
     return new_image
 
 
