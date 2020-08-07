@@ -4,14 +4,13 @@ import random
 
 
 class Dataset:
-    def __init__(self, dataset_directory, subjects, image_size=(30, 30), filters=[]):
+    def __init__(self, dataset_directory, subjects, image_size=(30, 30)):
         self.data = []
         for index, subject in enumerate(subjects):
             for image_name in gb.glob("%s/%s/*.jpg" % (dataset_directory, subject)):
                 img = cv2.imread(image_name)
                 img = cv2.resize(img, image_size)
-                for image_filter in filters:
-                    img = image_filter(img)
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 self.data.append((img, index))  # (image, label)
 
     def get_data(self, filters, train_percentage=0.7):
