@@ -1,0 +1,5 @@
+torch
+cv2
+numpy
+tqdm
+bindsnet==0.2.7
