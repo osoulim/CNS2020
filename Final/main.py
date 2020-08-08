@@ -1,5 +1,5 @@
 import math
-
+import glob
 import torch
 import cv2
 import matplotlib.pyplot as plt
@@ -8,7 +8,7 @@ from tqdm import tqdm
 from bindsnet.analysis.plotting import plot_spikes
 from bindsnet.encoding import RankOrderEncoder
 from bindsnet.network.nodes import Input, LIFNodes
-from bindsnet.network import Network
+from bindsnet.network import Network, load
 from bindsnet.network.monitors import NetworkMonitor
 from bindsnet.network.monitors import Monitor
 from bindsnet.network.topology import Conv2dConnection, MaxPool2dConnection, Connection
@@ -33,7 +33,9 @@ FILTERS = [lambda x: cv2.filter2D(x, -1, kernel) for kernel in KERNELS]
 
 FEATURES = 8
 RUN_TIME = 50
+DECISION_LAYER_SIZE = 1000
 
+TRAINED_NETWORK_PATH = 'trained_network.pt'
 
 def get_s1_name(size): return 'S1_%d' % size
 
@@ -74,6 +76,38 @@ def create_hmax(network):
             network.add_connection(max_pool, get_s2_name(size, index), get_c2_name(size, index))
 
 
+def add_decision_layers(network):
+    d1 = LIFNodes(n=DECISION_LAYER_SIZE, traces=True)
+    network.add_layer(d1, "D1")
+
+    for index in range(FEATURES):
+        for size in GABOR_SIZES:
+            connection = Connection(
+                source=network.layers[get_c2_name(size, index)],
+                target=d1,
+                w=0.05 + 0.1 * torch.randn(network.layers[get_c2_name(size, index)].n, d1.n)
+            )
+            network.add_connection(connection, get_c2_name(size, index), "D1")
+
+    output = LIFNodes(n=len(SUBJECTS), traces=True)
+    network.add_layer(output, "OUT")
+
+    connection = Connection(
+        source=d1,
+        target=output,
+        w=0.05 + 0.1 * torch.randn(d1.n, output.n)
+    )
+    network.add_connection(connection, "D1", "OUT")
+
+    rec_connection = Connection(
+        source=output,
+        target=output,
+        w=0.05 * (torch.eye(output.n) - 1),
+        decay=1,
+    )
+    network.add_connection(rec_connection, "OUT", "OUT")
+
+
 def encode_image(image):
     t = torch.from_numpy(image).float()
     if t.min() < 0:
@@ -99,13 +133,33 @@ def train(network, data):
 
 
 if __name__ == "__main__":
-    print("Creating network")
-    network = Network(batch_size=1)
-    create_hmax(network)
+    if not glob.glob(TRAINED_NETWORK_PATH):
+        network = Network()
+        create_hmax(network)
 
-    print("Loading data")
-    dataset = Dataset('data', subjects=SUBJECTS, image_size=(IMAGE_SIZE, IMAGE_SIZE))
-    train_data, train_labels, test_data, test_labels = dataset.get_data(filters=FILTERS)
+        print("Loading data")
+        dataset = Dataset('data', subjects=SUBJECTS, image_size=(IMAGE_SIZE, IMAGE_SIZE))
+        train_data, train_labels, test_data, test_labels = dataset.get_data(filters=FILTERS)
 
-    print("Training %d samples" % len(train_data))
-    train(network, train_data)
+        print("Training %d samples" % len(train_data))
+        train(network, train_data)
+
+        print("Add decision layers")
+        add_decision_layers(network)
+
+        network.add_monitor(
+            Monitor(network.layers["OUT"], ["s"]),
+            "Result"
+        )
+
+        print("Training again...")
+        train(network, train_data)
+
+        network.save(TRAINED_NETWORK_PATH)
+    else:
+        print("Trained network loaded from file")
+        network = load(TRAINED_NETWORK_PATH)
+
+    network.training = False
+    print("Start testing")
+
