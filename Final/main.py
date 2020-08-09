@@ -9,24 +9,23 @@ from bindsnet.analysis.plotting import plot_spikes
 from bindsnet.encoding import RankOrderEncoder
 from bindsnet.network.nodes import Input, LIFNodes
 from bindsnet.network import Network, load
-from bindsnet.network.monitors import NetworkMonitor
 from bindsnet.network.monitors import Monitor
 from bindsnet.network.topology import Conv2dConnection, MaxPool2dConnection, Connection
 from bindsnet.learning import PostPre
 from bindsnet.evaluation import assign_labels, all_activity
 from sklearn.model_selection import KFold
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
 
 from dataset import Dataset
 
 SUBJECTS = ['airplanes', 'butterfly', 'Faces_easy', 'garfield']
-# SUBJECTS = ['butterfly']
+# SUBJECTS = ['butterfly', 'garfield']
 
 GAMMA = 0.5
 THETA_PARTS = 4
 THETA = [math.pi * i / THETA_PARTS for i in range(THETA_PARTS)]
 GABOR_SIZES = [5, 7, 9, 11]
-IMAGE_SIZE = 50
+IMAGE_SIZE = 30
 KERNELS = [cv2.getGaborKernel((size, size), size / 3, theta, size / 2, GAMMA)
            for theta in THETA for size in GABOR_SIZES]
 FILTERS = [lambda x: cv2.filter2D(x, -1, kernel) for kernel in KERNELS]
@@ -36,6 +35,7 @@ RUN_TIME = 50
 DECISION_LAYER_SIZE = 1000
 
 TRAINED_NETWORK_PATH = 'trained_network.pt'
+
 
 def get_s1_name(size): return 'S1_%d' % size
 
@@ -63,7 +63,7 @@ def create_hmax(network):
     for index in range(FEATURES):
         for size in GABOR_SIZES:
             s2 = LIFNodes(shape=(1, IMAGE_SIZE // 2, IMAGE_SIZE // 2), traces=True)
-            network.add_layer(layer=s2, name=get_c2_name(size, index))
+            network.add_layer(layer=s2, name=get_s2_name(size, index))
 
             conv = Conv2dConnection(network.layers[get_c1_name(size)], s2, 5, padding=2, weight_decay=0.01,
                                     nu=0.01, update_rule=PostPre, decay=0.5)
@@ -89,15 +89,25 @@ def add_decision_layers(network):
             )
             network.add_connection(connection, get_c2_name(size, index), "D1")
 
+    d2 = LIFNodes(n=DECISION_LAYER_SIZE, traces=True)
+    network.add_layer(d2, "D2")
+
+    connection = Connection(
+        source=d1,
+        target=d2,
+        w=0.05 + 0.1 * torch.randn(d1.n, d2.n)
+    )
+    network.add_connection(connection, "D1", "D2")
+
     output = LIFNodes(n=len(SUBJECTS), traces=True)
     network.add_layer(output, "OUT")
 
     connection = Connection(
-        source=d1,
+        source=d2,
         target=output,
         w=0.05 + 0.1 * torch.randn(d1.n, output.n)
     )
-    network.add_connection(connection, "D1", "OUT")
+    network.add_connection(connection, "D2", "OUT")
 
     rec_connection = Connection(
         source=output,
@@ -132,14 +142,28 @@ def train(network, data):
         network.run(network_input, time=RUN_TIME)
 
 
+def test(network, data, labels):
+    activities = torch.zeros(len(data), RUN_TIME, len(SUBJECTS))
+    true_labels = torch.from_numpy(np.array(labels))
+
+    for index, image_batch in enumerate(tqdm(data)):
+        network_input = encode_image_batch(image_batch)
+        network.run(network_input, time=RUN_TIME)
+        activities[index, :, :] = network.monitors["Result"].get("s")[-1 * RUN_TIME, 0]
+
+    assignments, _, _ = assign_labels(activities, true_labels, len(SUBJECTS))
+    predicated_labels = all_activity(activities, assignments, len(SUBJECTS))
+    print(classification_report(true_labels, predicated_labels))
+
+
 if __name__ == "__main__":
+    print("Loading data")
+    dataset = Dataset('data', subjects=SUBJECTS, image_size=(IMAGE_SIZE, IMAGE_SIZE))
+    train_data, train_labels, test_data, test_labels = dataset.get_data(filters=FILTERS)
+
     if not glob.glob(TRAINED_NETWORK_PATH):
         network = Network()
         create_hmax(network)
-
-        print("Loading data")
-        dataset = Dataset('data', subjects=SUBJECTS, image_size=(IMAGE_SIZE, IMAGE_SIZE))
-        train_data, train_labels, test_data, test_labels = dataset.get_data(filters=FILTERS)
 
         print("Training %d samples" % len(train_data))
         train(network, train_data)
@@ -162,4 +186,4 @@ if __name__ == "__main__":
 
     network.training = False
     print("Start testing")
-
+    test(network, test_data, test_labels)

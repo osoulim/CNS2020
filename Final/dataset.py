@@ -23,7 +23,8 @@ class Dataset:
             batch_data.append((temp, label))
 
         train_size = int(len(batch_data) * train_percentage)
-        train_data, train_label = [[i for i, j in batch_data[0: train_size]], [j for i, j in batch_data[0: train_size]]]
+        train_labeled_data = sorted(batch_data[0: train_size], key=lambda x: x[1])
+        train_data, train_label = [[i for i, j in train_labeled_data], [j for i, j in train_labeled_data]]
         test_data, test_label = [[i for i, j in batch_data[train_size:]], [j for i, j in batch_data[train_size:]]]
         return train_data, train_label, test_data, test_label
 
