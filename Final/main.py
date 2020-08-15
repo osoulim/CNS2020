@@ -89,25 +89,15 @@ def add_decision_layers(network):
             )
             network.add_connection(connection, get_c2_name(size, index), "D1")
 
-    d2 = LIFNodes(n=DECISION_LAYER_SIZE, traces=True)
-    network.add_layer(d2, "D2")
-
-    connection = Connection(
-        source=d1,
-        target=d2,
-        w=0.05 + 0.1 * torch.randn(d1.n, d2.n)
-    )
-    network.add_connection(connection, "D1", "D2")
-
     output = LIFNodes(n=len(SUBJECTS), traces=True)
     network.add_layer(output, "OUT")
 
     connection = Connection(
-        source=d2,
+        source=d1,
         target=output,
         w=0.05 + 0.1 * torch.randn(d1.n, output.n)
     )
-    network.add_connection(connection, "D2", "OUT")
+    network.add_connection(connection, "D1", "OUT")
 
     rec_connection = Connection(
         source=output,
@@ -171,13 +161,13 @@ if __name__ == "__main__":
         print("Add decision layers")
         add_decision_layers(network)
 
+        print("Training again...")
+        train(network, train_data)
+
         network.add_monitor(
             Monitor(network.layers["OUT"], ["s"]),
             "Result"
         )
-
-        print("Training again...")
-        train(network, train_data)
 
         network.save(TRAINED_NETWORK_PATH)
     else:
