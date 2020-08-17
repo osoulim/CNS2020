@@ -5,7 +5,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-from bindsnet.analysis.plotting import plot_spikes, plot_conv2d_weights
+from bindsnet.analysis.plotting import plot_spikes, plot_conv2d_weights, plot_voltages
 from bindsnet.encoding import RankOrderEncoder
 from bindsnet.network.nodes import Input, LIFNodes
 from bindsnet.network import Network, load
@@ -54,22 +54,21 @@ def create_hmax(network):
         s1 = Input(shape=(FILTER_TYPES, IMAGE_SIZE, IMAGE_SIZE), traces=True)
         network.add_layer(layer=s1, name=get_s1_name(size))
 
-        c1 = LIFNodes(shape=(FILTER_TYPES, IMAGE_SIZE // 2, IMAGE_SIZE // 2), thresh=-63, traces=True)
+        c1 = LIFNodes(shape=(FILTER_TYPES, IMAGE_SIZE // 2, IMAGE_SIZE // 2), thresh=-64, traces=True)
         network.add_layer(layer=c1, name=get_c1_name(size))
 
         max_pool = MaxPool2dConnection(s1, c1, kernel_size=2, stride=2, decay=0.5)
         network.add_connection(max_pool, get_s1_name(size), get_c1_name(size))
 
-        s2 = LIFNodes(shape=(1, IMAGE_SIZE // 2, IMAGE_SIZE // 2), traces=True)
+        s2 = LIFNodes(shape=(1, IMAGE_SIZE // 2, IMAGE_SIZE // 2), thresh=-64, traces=True)
         network.add_layer(layer=s2, name=get_s2_name(size))
 
-        conv = Conv2dConnection(network.layers[get_c1_name(size)], s2, 5, padding=2, weight_decay=0.01,
+        conv = Conv2dConnection(network.layers[get_c1_name(size)], s2, 5, padding=2,
                                 nu=[0.0001, 0.0002], update_rule=WeightDependentPostPre, wmin=0, wmax=1)
+
         network.add_connection(conv, get_c1_name(size), get_s2_name(size))
 
-        network.add_monitor(Monitor(conv, ["w"]), get_s2_name(size))
-
-        c2 = LIFNodes(shape=(1, IMAGE_SIZE // 4, IMAGE_SIZE // 4), thresh=-63.5, traces=True)
+        c2 = LIFNodes(shape=(1, IMAGE_SIZE // 4, IMAGE_SIZE // 4), thresh=-64, traces=True)
         network.add_layer(layer=c2, name=get_c2_name(size))
 
         max_pool = MaxPool2dConnection(s2, c2, kernel_size=2, stride=2, decay=0.0)
@@ -141,7 +140,10 @@ def test(network, data, labels):
         network_input = encode_image_batch(image_batch)
         network.run(network_input, time=RUN_TIME)
         spikes = network.monitors["Result"].get("s")
-        activities[index, :, :] = spikes[-RUN_TIME, 0]
+        activities[index, :, :] = spikes[-RUN_TIME:, 0]
+        # plot_spikes({"out": spikes})
+        # plt.show()
+        # plt.pause(1)
 
     assignments = assign_labels(activities, true_labels, len(SUBJECTS))
     predicated_labels = all_activity(activities, assignments[0], len(SUBJECTS))
@@ -166,6 +168,11 @@ if __name__ == "__main__":
         network = Network()
         create_hmax(network)
 
+        network.add_monitor(
+            Monitor(network.layers[get_s2_name(FILTER_SIZES[0])], ["s", "v"]),
+            "TEST"
+        )
+
         print("Training %d samples" % len(train_data))
         train(network, train_data)
 
@@ -180,18 +187,17 @@ if __name__ == "__main__":
         print("Trained network loaded from file")
         network = load(TRAINED_NETWORK_PATH)
 
+    # voltages = network.monitors["TEST"].get("v")
+    # spikes = network.monitors["TEST"].get("s")
+    # plot_spikes({"TEST": spikes})
+    # plot_voltages({"TEST": voltages})
+    # plt.show()
+    # plt.pause(5)
+
     network.add_monitor(
         Monitor(network.layers["OUT"], ["s"]),
         "Result"
     )
-
-    for size in FILTER_SIZES:
-        network.add_monitor(
-            Monitor(network.layers[get_c2_name(size)], ["s"]),
-            get_c2_name(size)
-        )
-
-
     network.training = False
     print("Start testing")
     test(network, test_data, test_labels)
