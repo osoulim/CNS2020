@@ -31,7 +31,9 @@ class Dataset:
 
 if __name__ == "__main__":
     bgr2gray = lambda x: cv2.cvtColor(x, cv2.COLOR_BGR2GRAY)
-    dataset = Dataset('data', ['ant', 'camera'], (100, 100))
-    cv2.imshow("sag", dataset.get_data([bgr2gray, ])[2][1][0])
+    dataset = Dataset('data', ['ant', 'camera'], (200, 200))
+    cv2.imshow("sag", dataset.get_data([
+        lambda x: cv2.filter2D(x, -1, cv2.getGaussianKernel(19, 1) - cv2.getGaussianKernel(19, 10))
+        ,])[2][1][0])
     cv2.waitKey(0)
     cv2.destroyAllWindows()

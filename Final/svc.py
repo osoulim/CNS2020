@@ -33,7 +33,7 @@ FILTERS = [lambda x: cv2.filter2D(x, -1, kernel) for kernel in KERNELS]
 
 FEATURES = range(12)
 RUN_TIME = 40
-TRAINED_NETWORK_PATH = 'trained_network.pt'
+TRAINED_NETWORK_PATH = 'trained_network_svc.pt'
 EPOCHS = 2
 
 
@@ -86,30 +86,6 @@ def create_hmax(network):
             network.add_connection(max_pool, get_s2_name(size, feature), get_c2_name(size, feature))
 
 
-def add_decision_layers(network):
-    output = LIFNodes(n=len(SUBJECTS), thresh=-60, traces=True)
-    network.add_layer(output, "OUT")
-    network.add_monitor(Monitor(output, ["s", "v"]), "OUT")
-
-    for feature in FEATURES:
-        for size in FILTER_SIZES:
-            connection = Connection(
-                source=network.layers[get_c2_name(size, feature)],
-                target=output,
-                w=0.05 + 0.1 * torch.randn(network.layers[get_c2_name(size, feature)].n, output.n),
-                update_rule=PostPre
-            )
-            network.add_connection(connection, get_c2_name(size, feature), "OUT")
-
-    rec_connection = Connection(
-        source=output,
-        target=output,
-        w=0.05 * (torch.eye(output.n) - 1),
-        decay=0.0,
-    )
-    network.add_connection(rec_connection, "OUT", "OUT")
-
-
 def encode_image(image):
     t = torch.from_numpy(image).float()
     if t.min() < 0:
@@ -158,13 +134,9 @@ if __name__ == "__main__":
         network = Network()
         create_hmax(network)
 
-        for e in range(EPOCHS - 1):
+        for e in range(EPOCHS):
             train(network, train_data)
 
-        print("Add decision layers")
-        add_decision_layers(network)
-
-        train(network, train_data)
         network.save(TRAINED_NETWORK_PATH)
     else:
         network = load(TRAINED_NETWORK_PATH)
